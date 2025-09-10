@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import * as ort from "onnxruntime-web";
+import { load_model, ort } from "./model";
 
 function App() {
   const [output, setOutput] = useState<any>(null);
@@ -8,17 +8,10 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    async function runInference() {
-      setIsLoading(true);
-      // Path must be relative to public folder in Vite projects
-      const modelUrl = `/model.onnx`;
-
-      // Create session
-      const session = await ort.InferenceSession.create(modelUrl);
-      setSession(session);
+    load_model().then((res) => {
+      setSession(res);
       setIsLoading(false);
-    }
-    runInference();
+    });
   }, []);
 
   const prediction = handleOutput(output);
