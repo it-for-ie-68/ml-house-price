@@ -1,44 +1,87 @@
-// src/App.jsx
 import { useEffect, useState } from "react";
 import * as ort from "onnxruntime-web";
 
 function App() {
   const [output, setOutput] = useState<any>(null);
-  console.log({ ort });
+  const [areaText, setAreaText] = useState<string>("");
+  const [session, setSession] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
   useEffect(() => {
     async function runInference() {
+      setIsLoading(true);
       // Path must be relative to public folder in Vite projects
-      const modelUrl = `/mymodel.onnx`;
+      const modelUrl = `/model.onnx`;
 
       // Create session
       const session = await ort.InferenceSession.create(modelUrl);
-
-      // Example: prepare one input (float32 tensor)
-      const input = new ort.Tensor("float32", [0.5], [1, 1]);
-      console.log({ input });
-      const feeds = { x: input };
-
-      // Run inference
-      const results = await session.run(feeds);
-      setOutput(results);
-      // Log output
-      console.log({ results });
+      setSession(session);
+      setIsLoading(false);
     }
     runInference();
   }, []);
 
+  const prediction = handleOutput(output);
+
+  function handleAreaText(e: any) {
+    setAreaText(e.target.value);
+  }
+
+  async function handleSubmit() {
+    const areaScaled = handleArea(areaText);
+    if (!areaScaled || !session) return;
+    // Prepare input (float32 tensor)
+    const input = new ort.Tensor("float32", [areaScaled], [1, 1]);
+    const feeds = { input: input };
+
+    // Run inference
+    const output = await session.run(feeds);
+    // console.log({ output: output });
+    setOutput(output);
+  }
+
+  if (isLoading) return <div className="container">Loading....</div>;
   return (
-    <div>
-      ONNXRuntime Web Inference Example
+    <div className="container">
+      <h1>House Price Prediction</h1>
+      <label htmlFor="area">Area (Square Feet)</label>
+      <input
+        type="number"
+        id="area"
+        value={areaText}
+        onChange={handleAreaText}
+      />
+      <button onClick={handleSubmit}>Submit</button>
+      {/* Display output */}
       <div>
-        {/* Display output as JSON */}
-        <pre>
-          {/* {output ? JSON.stringify(output, null, 2) : "Running inference..."} */}
-          {output ? output?.linear_3?.cpuData["0"] : "Running...."}
-        </pre>
+        {prediction && <article>Estimated Price: {prediction}💲</article>}
       </div>
     </div>
   );
 }
 
 export default App;
+
+function handleOutput(output: any) {
+  // Change here
+  const X_min = 800000;
+  const X_max = 2000000;
+  //
+  if (!output) return null;
+  const X_scaled = output?.output?.cpuData["0"] as number;
+  // console.log({ X_scaled });
+  const X = X_min + X_scaled * (X_max - X_min);
+  return X.toFixed(2);
+}
+
+function handleArea(input: string) {
+  // Change here
+  const mean = 1275.25;
+  const std = 353.78480394;
+  //
+  const inputNum = parseFloat(input);
+  if (isNaN(inputNum)) {
+    return null;
+  }
+  return (inputNum - mean) / std;
+}
