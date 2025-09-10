@@ -8,6 +8,7 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
+    setIsLoading(true);
     load_model().then((res) => {
       setSession(res);
       setIsLoading(false);
